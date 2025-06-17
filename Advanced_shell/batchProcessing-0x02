@@ -1,31 +1,26 @@
 #!/bin/bash
 
-# Dossier contenant les fichiers JSON
-DATA_DIR="pokemon_data"
-CSV_FILE="pokemon_report.csv"
+# Liste des Pokémon à récupérer
+POKEMONS=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
 
-# Vérifier si le dossier existe
-if [ ! -d "$DATA_DIR" ]; then
-    echo "Error: $DATA_DIR not found."
-    exit 1
-fi
+# Dossier de destination
+DEST_DIR="pokemon_data"
+mkdir -p "$DEST_DIR"
 
-# En-tête du CSV
-echo "Name,Height (m),Weight (kg)" > "$CSV_FILE"
+# Boucle sur chaque Pokémon
+for POKEMON in "${POKEMONS[@]}"; do
+    echo "Fetching data for $POKEMON..."
 
-# Lire chaque fichier JSON et extraire les données
-for file in "$DATA_DIR"/*.json; do
-    name=$(jq -r '.name' "$file" | sed 's/.*/\u&/')
-    height=$(jq -r '.height' "$file" | awk '{printf "%.2f", $1/10}')
-    weight=$(jq -r '.weight' "$file" | awk '{printf "%.2f", $1/10}')
-    echo "$name,$height,$weight" >> "$CSV_FILE"
+    # Requête curl avec gestion des erreurs
+    RESPONSE=$(curl -s -w "%{http_code}" -o "$DEST_DIR/${POKEMON}.json.tmp" "https://pokeapi.co/api/v2/pokemon/$POKEMON")
+
+    if [ "$RESPONSE" -eq 200 ]; then
+        mv "$DEST_DIR/${POKEMON}.json.tmp" "$DEST_DIR/${POKEMON}.json"
+        echo "Saved data to $DEST_DIR/${POKEMON}.json ✅"
+    else
+        echo "Failed to fetch data for $POKEMON (HTTP $RESPONSE)" | tee -a errors.txt
+        rm -f "$DEST_DIR/${POKEMON}.json.tmp"
+    fi
+
+    sleep 2
 done
-
-# Afficher le rapport
-echo -e "\nCSV Report generated at: $CSV_FILE"
-cat "$CSV_FILE"
-
-# Calcul de la moyenne avec awk
-awk -F',' 'NR>1 {h+=$2; w+=$3; n++} END {
-    printf "\nAverage Height: %.2f m\nAverage Weight: %.2f kg\n", h/n, w/n
-}' "$CSV_FILE"
