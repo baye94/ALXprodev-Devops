@@ -4,44 +4,38 @@ POKEMONS=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
 DEST_DIR="pokemon_data"
 mkdir -p "$DEST_DIR"
 
+PIDS=()
+
 fetch_pokemon() {
     local name=$1
-    local attempts=0
-    local success=0
+    local url="https://pokeapi.co/api/v2/pokemon/$name"
 
-    while [ $attempts -lt 3 ]; do
-        ((attempts++))
-        echo "Fetching data for $name (Attempt $attempts)..."
-
-        HTTP_CODE=$(curl -s -w "%{http_code}" -o "$DEST_DIR/${name}.json.tmp" "https://pokeapi.co/api/v2/pokemon/$name")
-
-        if [ "$HTTP_CODE" -eq 200 ]; then
-            mv "$DEST_DIR/${name}.json.tmp" "$DEST_DIR/${name}.json"
-            echo "Saved data to $DEST_DIR/${name}.json ✅"
-            success=1
-            break
-        else
-            echo "Attempt $attempts for $name failed with HTTP code $HTTP_CODE."
-            sleep 2
-        fi
-    done
-
-    if [ $success -eq 0 ]; then
-        echo "Failed to fetch $name after 3 attempts." | tee -a errors.txt
-        rm -f "$DEST_DIR/${name}.json.tmp"
+    echo "Fetching data for $name..."
+    curl -s "$url" -o "$DEST_DIR/${name}.json"
+    if [ $? -eq 0 ]; then
+        echo "Saved data to $DEST_DIR/${name}.json ✅"
+    else
+        echo "Failed to fetch $name" >> errors.txt
     fi
 }
 
-# Lancer les tâches en arrière-plan
-for POKEMON in "${POKEMONS[@]}"; do
-    fetch_pokemon "$POKEMON" &
+# Lancer tous les fetchs en arrière-plan
+for name in "${POKEMONS[@]}"; do
+    fetch_pokemon "$name" &
+    PIDS+=($!)  # Stocker le PID
 done
 
-# Vérifier les jobs actifs
-echo "Running background jobs:"
+# Vérifier les jobs
 jobs
 
-# Attendre que tous les processus en arrière-plan soient terminés
+# Simuler un timeout ou une interruption
+sleep 2
+echo "Too long... killing all remaining fetches 😤"
+for pid in "${PIDS[@]}"; do
+    kill "$pid" 2>/dev/null
+done
+
+# Attendre la fin des processus (même ceux qu'on a kill pour nettoyage)
 wait
 
-echo "✅ All Pokémon data fetched."
+echo "✅ Script terminé."
