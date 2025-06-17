@@ -1,0 +1,44 @@
+#!/bin/bash
+
+POKEMONS=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
+DEST_DIR="pokemon_data"
+mkdir -p "$DEST_DIR"
+
+# Fonction pour récupérer un Pokémon avec retry simple
+fetch_pokemon() {
+    local name=$1
+    local attempts=0
+    local success=0
+
+    while [ $attempts -lt 3 ]; do
+        ((attempts++))
+        echo "Fetching data for $name (Attempt $attempts)..."
+
+        HTTP_CODE=$(curl -s -w "%{http_code}" -o "$DEST_DIR/${name}.json.tmp" "https://pokeapi.co/api/v2/pokemon/$name")
+
+        if [ "$HTTP_CODE" -eq 200 ]; then
+            mv "$DEST_DIR/${name}.json.tmp" "$DEST_DIR/${name}.json"
+            echo "Saved data to $DEST_DIR/${name}.json ✅"
+            success=1
+            break
+        else
+            echo "Attempt $attempts for $name failed with HTTP code $HTTP_CODE."
+            sleep 2
+        fi
+    done
+
+    if [ $success -eq 0 ]; then
+        echo "Failed to fetch $name after 3 attempts." | tee -a errors.txt
+        rm -f "$DEST_DIR/${name}.json.tmp"
+    fi
+}
+
+# Boucle en parallèle
+for POKEMON in "${POKEMONS[@]}"; do
+    fetch_pokemon "$POKEMON" &
+done
+
+# Attendre que tous les jobs en arrière-plan soient terminés
+wait
+
+echo "All Pokémon data fetched."
