@@ -32,10 +32,16 @@ fetch_pokemon() {
     fi
 }
 
+# Lancer les tâches en arrière-plan
 for POKEMON in "${POKEMONS[@]}"; do
     fetch_pokemon "$POKEMON" &
 done
 
+# Vérifier les jobs actifs
+echo "Running background jobs:"
+jobs
+
+# Attendre que tous les processus en arrière-plan soient terminés
 wait
 
-echo "All Pokémon data fetched."
+echo "✅ All Pokémon data fetched."
