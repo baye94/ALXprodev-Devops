@@ -3,24 +3,40 @@
 # Liste des Pokémon à récupérer
 POKEMONS=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
 
-# Dossier de destination
+# Dossier pour stocker les fichiers JSON
 DEST_DIR="pokemon_data"
 mkdir -p "$DEST_DIR"
 
-# Boucle sur chaque Pokémon
-for POKEMON in "${POKEMONS[@]}"; do
-    echo "Fetching data for $POKEMON..."
+# Fonction de récupération avec retry
+fetch_pokemon() {
+    local name=$1
+    local attempts=0
+    local success=0
 
-    # Requête curl avec gestion des erreurs
-    RESPONSE=$(curl -s -w "%{http_code}" -o "$DEST_DIR/${POKEMON}.json.tmp" "https://pokeapi.co/api/v2/pokemon/$POKEMON")
+    while [ $attempts -lt 3 ]; do
+        ((attempts++))
+        echo "Fetching data for $name (Attempt $attempts)..."
 
-    if [ "$RESPONSE" -eq 200 ]; then
-        mv "$DEST_DIR/${POKEMON}.json.tmp" "$DEST_DIR/${POKEMON}.json"
-        echo "Saved data to $DEST_DIR/${POKEMON}.json ✅"
-    else
-        echo "Failed to fetch data for $POKEMON (HTTP $RESPONSE)" | tee -a errors.txt
-        rm -f "$DEST_DIR/${POKEMON}.json.tmp"
+        HTTP_CODE=$(curl -s -w "%{http_code}" -o "$DEST_DIR/${name}.json.tmp" "https://pokeapi.co/api/v2/pokemon/$name")
+
+        if [ "$HTTP_CODE" -eq 200 ]; then
+            mv "$DEST_DIR/${name}.json.tmp" "$DEST_DIR/${name}.json"
+            echo "Saved data to $DEST_DIR/${name}.json ✅"
+            success=1
+            break
+        else
+            echo "Attempt $attempts failed with HTTP code $HTTP_CODE."
+            sleep 2
+        fi
+    done
+
+    if [ $success -eq 0 ]; then
+        echo "Failed to fetch $name after 3 attempts." | tee -a errors.txt
+        rm -f "$DEST_DIR/${name}.json.tmp"
     fi
+}
 
-    sleep 2
+# Boucle principale
+for POKEMON in "${POKEMONS[@]}"; do
+    fetch_pokemon "$POKEMON"
 done
