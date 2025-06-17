@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# Liste des Pokémon à traiter
+POKEMONS=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
+
+# Dossier de destination
+DEST_DIR="pokemon_data"
+
+# Création du dossier s'il n'existe pas
+mkdir -p "$DEST_DIR"
+
+# Boucle sur chaque Pokémon
+for POKEMON in "${POKEMONS[@]}"; do
+    echo "Fetching data for $POKEMON..."
+
+    # Requête API et sauvegarde dans un fichier
+    RESPONSE=$(curl -s -w "%{http_code}" "https://pokeapi.co/api/v2/pokemon/$POKEMON")
+    BODY=$(echo "$RESPONSE" | head -c -3)
+    CODE=$(echo "$RESPONSE" | tail -c 3)
+
+    if [ "$CODE" -eq 200 ]; then
+        echo "$BODY" > "$DEST_DIR/${POKEMON}.json"
+        echo "Saved data to $DEST_DIR/${POKEMON}.json ✅"
+    else
+        echo "Failed to fetch $POKEMON (HTTP $CODE)" >> errors.txt
+    fi
+
+    # Délai pour éviter un rate limit
+    sleep 2
+done
