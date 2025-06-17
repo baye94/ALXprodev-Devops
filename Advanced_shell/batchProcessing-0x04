@@ -4,7 +4,6 @@ POKEMONS=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
 DEST_DIR="pokemon_data"
 mkdir -p "$DEST_DIR"
 
-# Fonction pour récupérer un Pokémon avec retry simple
 fetch_pokemon() {
     local name=$1
     local attempts=0
@@ -33,12 +32,10 @@ fetch_pokemon() {
     fi
 }
 
-# Boucle en parallèle
 for POKEMON in "${POKEMONS[@]}"; do
     fetch_pokemon "$POKEMON" &
 done
 
-# Attendre que tous les jobs en arrière-plan soient terminés
 wait
 
 echo "All Pokémon data fetched."
